@@ -5,10 +5,10 @@ FROM phusion/baseimage:0.9.22
 MAINTAINER Brandon Jackson "usbrandon@gmail.com"
 ENV REFRESHED_AT 2017-10-03
 
-LABEL io.k8s.description="Headless VNC Container with Xfce window manager, firefox and chromium" \
+LABEL io.k8s.description="Headless VNC Container with Xfce window manager, Pentaho Data Integration and chromium" \
       io.k8s.display-name="Headless VNC Container based on Ubuntu" \
       io.openshift.expose-services="6901:http,5901:xvnc" \
-      io.openshift.tags="vnc, ubuntu, xfce" \
+      io.openshift.tags="pdi, vnc, ubuntu, xfce" \
       io.openshift.non-scalable=true
 
 ## Connection ports for controlling the UI:
@@ -25,7 +25,6 @@ ENV POSTGRESQL_DRIVER_VERSION=9.4.1212 \
     JTDS_VERSION=1.3.1 \
     H2DB_VERSION=1.4.193 \
     HSQLDB_VERSION=2.3.4
-
 
 ### Envrionment config
 ENV HOME=/headless \
@@ -82,8 +81,7 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 RUN $INST_SCRIPTS/tigervnc.sh
 RUN $INST_SCRIPTS/no_vnc.sh
 
-### Install firefox and chrome browser
-RUN $INST_SCRIPTS/firefox.sh
+### Install chrome browser
 RUN $INST_SCRIPTS/chrome.sh
 
 ### Install xfce UI
@@ -91,19 +89,18 @@ RUN $INST_SCRIPTS/xfce_ui.sh
 ADD ./src/common/xfce/ $HOME/
 
 ### Install Pentaho Data Integration
-ADD pdi-ce-7.1.0.4-66.zip $HOME/
-RUN unzip pdi-ce-7.1.0.4-66.zip -d $HOME/ \
-  && rm pdi-ce-7.1.0.4-66.zip \
-  && ln -s ${HOME}/jdbc ${HOME}/data-integration/lib \
+### using a tar.gz which auto extracts saved two layers and 1gb
+ADD pdi-ce-7.1.0.4-66.tar.gz $HOME/
+
+# Add latest JDBC drivers and XMLA connector
+# Patch Pentaho Data Integration to use lib/jdbc instead only lib
+RUN ln -s ${HOME}/jdbc ${HOME}/data-integration/lib \
   && cd ${HOME}/data-integration/lib \
   && echo "=== Removing outdated JDBC Drivers ===" \
   && rm monetdb-jdbc-2.8.jar \
   && rm jt400-6.1.jar \
-  && rm sqlite-jdbc-3.7.2.jar
-
-# Add latest JDBC drivers and XMLA connector
-# Patch Pentaho Data Integration to use lib/jdbc instead only lib
-RUN echo "Download and install JDBC drivers..." \
+  && rm sqlite-jdbc-3.7.2.jar \
+  && echo "Download and install JDBC drivers..." \
       && cd ${HOME}/jdbc \
 	&& wget --progress=dot:giga https://jdbc.postgresql.org/download/postgresql-${POSTGRESQL_DRIVER_VERSION}.jar \
 			http://central.maven.org/maven2/mysql/mysql-connector-java/${MYSQL_DRIVER_VERSION}/mysql-connector-java-${MYSQL_DRIVER_VERSION}.jar \
@@ -117,6 +114,8 @@ RUN echo "Download and install JDBC drivers..." \
 ### configure startup
 RUN $INST_SCRIPTS/libnss_wrapper.sh
 ADD ./src/common/scripts $STARTUPDIR
+## TODO: This alteration ends up creating a 1gb layer
+## docker-squash'ing the image eliminates it, but there must be a better way
 RUN $INST_SCRIPTS/set_user_permission.sh $STARTUPDIR $HOME
 
 USER 1984
