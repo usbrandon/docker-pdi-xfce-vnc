@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Pentaho Data Integration
+Comment=
+Exec=/headless/data-integration/spoon.sh
+Icon=/headless/data-integration/spoon.png
+Path=/headless/data-integration
+Terminal=false
+StartupNotify=false
+Categories=Development
